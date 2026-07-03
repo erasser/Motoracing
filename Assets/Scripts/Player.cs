@@ -2,15 +2,28 @@ using UnityEngine;
 
 public class Player : MonoBehaviour
 {
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
+    public float forwardAcceleration;
+    [Tooltip("m/s")]
+    public float maxSpeed;
+    Rigidbody _rb;
+
+    public Transform frontWheel;
+    public Transform rearWheel;
+
     void Start()
     {
-        
+        _rb = GetComponent<Rigidbody>();
+        _rb.maxLinearVelocity = maxSpeed;
     }
 
-    // Update is called once per frame
     void Update()
     {
-        
+        ProcessControls();        
+    }
+
+    void ProcessControls()
+    {
+        if (Input.GetKey(KeyCode.W))
+            _rb.AddForce(Time.deltaTime * forwardAcceleration * Vector3.forward, ForceMode.Acceleration);
     }
 }
