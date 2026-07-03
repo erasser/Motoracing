@@ -18,7 +18,7 @@ public class Player : MonoBehaviour
 
     void Update()
     {
-        ProcessControls();        
+        // ProcessControls();        
     }
 
     void ProcessControls()
