@@ -31,17 +31,22 @@ public class Player : MonoBehaviour
     float _steerAngle;
     [Header("Steering")]
     public float maxSteerAngle = 30;
-    public float minSteerAngle = 5f;       // úhel při vysoké rychlosti
+    public float minSteerAngle = 8;       // úhel při vysoké rychlosti
     // TODO: Musim být schopný spočítat reálnou maximální rychlost
     public float referenceSpeed;           // m/s, rychlost, při které dosáhneš minSteerAngle
     public float steerSmoothSpeed = 5f;    // laditelná citlivost Lerpu
     public Transform handleBar;
     Vector3 _initialHandleBarEuler;
     [Header("Grip")]
-    public float frontGripStrength = 1000f;
-    public float rearGripStrength = 4000f;
+    public float frontGripStrength = 1000;
+    public float rearGripStrength = 4000;
     public float frontMaxGripForce = 4000;
     public float rearMaxGripForce = 3000;
+    [Header("Roll Stabilization")]
+    public float rollStiffness = 800;
+    public float rollDamping = 150;
+    [Header("Roll Stabilization")]
+    public float leanResponsiveness = 1; // 0 = žádný náklon do zatáčky, 1 = plný fyzikální náklon
 
     void Start()
     {
@@ -82,6 +87,8 @@ public class Player : MonoBehaviour
         ApplyLateralGrip(_rearWheelSuspension, transform.right, rearGripStrength, rearMaxGripForce);
 
         ApplyLongitudinalForce();  // forward push
+
+        ApplyRollStabilization();
     }
 
     void ProcessControls()
@@ -208,37 +215,32 @@ public class Player : MonoBehaviour
         _rb.AddForceAtPosition(dir * force, wheel.contactPoint);
     }
 
-    // void ApplyLateralGrip(WheelSuspension wheel, Vector3 rightDir, float maxGripForce)
-    // {
-    //     if (!wheel.grounded) return;
-    //
-    //     var right = Vector3.ProjectOnPlane(rightDir, wheel.groundNormal).normalized;
-    //     var pointVelocity = _rb.GetPointVelocity(wheel.contactPoint);
-    //     var lateralSpeed = Vector3.Dot(pointVelocity, right);
-    //
-    //     var neededForce = -lateralSpeed * _rb.mass / Time.fixedDeltaTime;
-    //     neededForce = Mathf.Clamp(neededForce, -maxGripForce, maxGripForce);
-    //
-    //     _rb.AddForceAtPosition(right * neededForce, wheel.contactPoint);
-    //
-    //     Debug.Log($"lateralSpeed: {lateralSpeed:F4}, neededForce: {neededForce:F1}");
-    //
-    // }
-
     // P-controller
     void ApplyLateralGrip(WheelSuspension wheel, Vector3 rightDir, float gripStrength, float maxGripForce)
     {
         if (!wheel.grounded) return;
     
-        Vector3 right = Vector3.ProjectOnPlane(rightDir, wheel.groundNormal).normalized;
-        Vector3 pointVelocity = _rb.GetPointVelocity(wheel.contactPoint);
-        float lateralSpeed = Vector3.Dot(pointVelocity, right);
-    
-        float force = -lateralSpeed * gripStrength; // NE / Time.fixedDeltaTime
+        var right = Vector3.ProjectOnPlane(rightDir, wheel.groundNormal).normalized;
+        var pointVelocity = _rb.GetPointVelocity(wheel.contactPoint);
+        var lateralSpeed = Vector3.Dot(pointVelocity, right);
+
+        var force = -lateralSpeed * gripStrength; // NE / Time.fixedDeltaTime
         force = Mathf.Clamp(force, -maxGripForce, maxGripForce);
-    
+
         _rb.AddForceAtPosition(right * force, wheel.contactPoint);
-        
-        // Debug.Log($"lateralSpeed: {lateralSpeed:F4}, neededForce: {neededForce:F1}");
+    }
+
+    void ApplyRollStabilization()
+    {
+        Vector3 forward = transform.forward;
+        Vector3 projectedWorldUp = Vector3.ProjectOnPlane(Vector3.up, forward).normalized;
+        Vector3 projectedLocalUp = Vector3.ProjectOnPlane(transform.up, forward).normalized;
+
+        float rollAngle = Vector3.SignedAngle(projectedWorldUp, projectedLocalUp, forward); // stupně
+        float rollRate = Vector3.Dot(_rb.angularVelocity, forward); // rad/s kolem forward osy
+
+        float torque = - rollAngle * Mathf.Deg2Rad * rollStiffness - rollRate * rollDamping;
+
+        _rb.AddTorque(forward * torque);
     }
 }
