@@ -70,25 +70,27 @@ public class Player : MonoBehaviour
         _dt = Time.deltaTime;
 
         ProcessControls();
-
-        UpdateWheelRotation();
     }
 
     void FixedUpdate()
     {
         _fdt = Time.fixedDeltaTime;
 
+        UpdateWheelRotation();
+
         UpdateSteering();
 
         ApplyWheelSuspension(_frontWheelSuspension);
-        ApplyWheelSuspension(_rearWheelSuspension/*, true*/);    
+        ApplyWheelSuspension(_rearWheelSuspension);    
 
         ApplyLateralGrip(_frontWheelSuspension, handleBar.right, frontGripStrength, frontMaxGripForce);
         ApplyLateralGrip(_rearWheelSuspension, transform.right, rearGripStrength, rearMaxGripForce);
 
-        ApplyLongitudinalForce();  // forward push
+        ApplyLongitudinalForce(/*_rearWheelSuspension, transform.forward, forwardAcceleration*/);  // forward push
 
         ApplyRollStabilization();
+
+        // _infoText.text = $"front normal: {_frontWheelSuspension.groundNormal}\nrear normal: {_rearWheelSuspension.groundNormal}";
     }
 
     void ProcessControls()
@@ -101,18 +103,15 @@ public class Player : MonoBehaviour
     void ApplyLongitudinalForce()
     {
         if (_keyForwardPressed && _rearWheelSuspension.grounded)
-        {
             _rb.AddForceAtPosition(_fdt * forwardAcceleration * transform.forward, applyForwardForceAtPosition.position, ForceMode.Acceleration);
-        }
+    }
 
-        // if (_keyLeftPressed)
-        //     frontWheelCollider.steerAngle -= _fdt * rotationIncrement;
-        // else if (_keyRightPressed)
-        //     frontWheelCollider.steerAngle += _fdt * rotationIncrement;
-        
-        // frontWheelCollider.steerAngle = Mathf.Clamp(frontWheelCollider.steerAngle, - 40, 40);
+    void ApplyLongitudinalForce(WheelSuspension wheel, Vector3 forwardDir, float force)
+    {
+        if (!wheel.grounded || Mathf.Approximately(force, 0f)) return;
 
-        // Debug.Log(frontWheelCollider.steerAngle);
+        var dir = Vector3.ProjectOnPlane(forwardDir, wheel.groundNormal).normalized;
+        _rb.AddForceAtPosition(dir * force, wheel.contactPoint);
     }
 
     void UpdateWheelRotation()  // TODO: To počítá i při letu/pádu
@@ -179,7 +178,7 @@ public class Player : MonoBehaviour
 
         handleBar.localEulerAngles = new Vector3(_initialHandleBarEuler.x, _steerAngle, _initialHandleBarEuler.z);
         
-        _infoText.text = $"steer ang: {_steerAngle}\nvelocity: {_rb.linearVelocity.magnitude}";
+        // _infoText.text = $"steer ang: {_steerAngle}\nvelocity: {_rb.linearVelocity.magnitude}";
     }
 
     class WheelSuspension
@@ -206,14 +205,6 @@ public class Player : MonoBehaviour
         public bool grounded;
         public Vector3 contactPoint;
     }
-    
-    void ApplyLongitudinalForce(WheelSuspension wheel, Vector3 forwardDir, float force)
-    {
-        if (!wheel.grounded || Mathf.Approximately(force, 0f)) return;
-
-        var dir = Vector3.ProjectOnPlane(forwardDir, wheel.groundNormal).normalized;
-        _rb.AddForceAtPosition(dir * force, wheel.contactPoint);
-    }
 
     // P-controller
     void ApplyLateralGrip(WheelSuspension wheel, Vector3 rightDir, float gripStrength, float maxGripForce)
@@ -228,18 +219,29 @@ public class Player : MonoBehaviour
         force = Mathf.Clamp(force, -maxGripForce, maxGripForce);
 
         _rb.AddForceAtPosition(right * force, wheel.contactPoint);
+
+        // if(info)
+            // _infoText.text = $"handle R: {handleBar.right}";
     }
 
     void ApplyRollStabilization()
     {
-        Vector3 forward = transform.forward;
-        Vector3 projectedWorldUp = Vector3.ProjectOnPlane(Vector3.up, forward).normalized;
-        Vector3 projectedLocalUp = Vector3.ProjectOnPlane(transform.up, forward).normalized;
+        var forward = transform.forward;
+        var projectedWorldUp = Vector3.ProjectOnPlane(Vector3.up, forward).normalized;
+        var projectedLocalUp = Vector3.ProjectOnPlane(transform.up, forward).normalized;
 
-        float rollAngle = Vector3.SignedAngle(projectedWorldUp, projectedLocalUp, forward); // stupně
-        float rollRate = Vector3.Dot(_rb.angularVelocity, forward); // rad/s kolem forward osy
+        var rollAngle = Vector3.SignedAngle(projectedWorldUp, projectedLocalUp, forward); // stupně
+        var rollRate = Vector3.Dot(_rb.angularVelocity, forward); // rad/s
 
-        float torque = - rollAngle * Mathf.Deg2Rad * rollStiffness - rollRate * rollDamping;
+        // Yaw rate kolem SVISLÉ osy (world up), ne kolem forward
+        var yawRate = Vector3.Dot(_rb.angularVelocity, Vector3.up); // rad/s
+        var speed = Vector3.Dot(_rb.linearVelocity, forward); // dopředná rychlost
+
+        var targetRollAngle = - Mathf.Atan2(speed * yawRate, 9.81f) * Mathf.Rad2Deg;
+        targetRollAngle *= leanResponsiveness;
+
+        var error = rollAngle - targetRollAngle;
+        var torque = - error * Mathf.Deg2Rad * rollStiffness - rollRate * rollDamping;
 
         _rb.AddTorque(forward * torque);
     }

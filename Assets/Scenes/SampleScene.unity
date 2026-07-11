@@ -726,7 +726,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 37179c695cd24604ba332b5ceaf25c2b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  forwardAcceleration: 1200
+  forwardAcceleration: 1600
   centerOfMass: {fileID: 370430744}
   applyForwardForceAtPosition: {fileID: 755986397}
   frontWheel: {fileID: 392320038}
@@ -748,6 +748,9 @@ MonoBehaviour:
   rearGripStrength: 4000
   frontMaxGripForce: 800
   rearMaxGripForce: 2000
+  rollStiffness: 500
+  rollDamping: 150
+  leanResponsiveness: 1
 --- !u!1 &494247302
 GameObject:
   m_ObjectHideFlags: 0
@@ -1081,6 +1084,10 @@ PrefabInstance:
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
       objectReference: {fileID: 2100000, guid: 3717a5fe09361a848888268bc51b6995, type: 2}
+    - target: {fileID: -5804811286429805432, guid: 84489249c615d904bb3af098503301d8, type: 3}
+      propertyPath: m_Name
+      value: front dampers - handlebar
+      objectReference: {fileID: 0}
     - target: {fileID: -5066164334525396073, guid: 84489249c615d904bb3af098503301d8, type: 3}
       propertyPath: m_IsActive
       value: 1
@@ -1127,19 +1134,19 @@ PrefabInstance:
       objectReference: {fileID: 2100000, guid: a7f684d92deeb6f488d8d08ca0345acf, type: 2}
     - target: {fileID: 8075092497162736848, guid: 84489249c615d904bb3af098503301d8, type: 3}
       propertyPath: m_LocalRotation.w
-      value: 0.9758834
+      value: 0.9765541
       objectReference: {fileID: 0}
     - target: {fileID: 8075092497162736848, guid: 84489249c615d904bb3af098503301d8, type: 3}
       propertyPath: m_LocalRotation.x
-      value: -0.21512447
+      value: -0.21527229
       objectReference: {fileID: 0}
     - target: {fileID: 8075092497162736848, guid: 84489249c615d904bb3af098503301d8, type: 3}
       propertyPath: m_LocalRotation.y
-      value: 0.007976607
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 8075092497162736848, guid: 84489249c615d904bb3af098503301d8, type: 3}
       propertyPath: m_LocalRotation.z
-      value: 0.036184818
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 8075092497162736848, guid: 84489249c615d904bb3af098503301d8, type: 3}
       propertyPath: m_LocalEulerAnglesHint.x
@@ -1151,7 +1158,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8075092497162736848, guid: 84489249c615d904bb3af098503301d8, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
-      value: 4.247
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 8624485247892250547, guid: 84489249c615d904bb3af098503301d8, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
@@ -1325,15 +1332,15 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: f7a866c87aa3d394a85d3fe39c15f328, type: 3}
       propertyPath: m_LocalRotation.x
-      value: 0.000000021855694
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: f7a866c87aa3d394a85d3fe39c15f328, type: 3}
       propertyPath: m_LocalRotation.y
-      value: -0
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: f7a866c87aa3d394a85d3fe39c15f328, type: 3}
       propertyPath: m_LocalRotation.z
-      value: -0
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: f7a866c87aa3d394a85d3fe39c15f328, type: 3}
       propertyPath: m_LocalEulerAnglesHint.x
@@ -1429,7 +1436,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_Material: {fileID: 0}
-  m_Color: {r: 0.19607843, g: 0.19607843, b: 0.19607843, a: 1}
+  m_Color: {r: 0, g: 0, b: 0, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
