@@ -10,9 +10,9 @@ public class Player : MonoBehaviour
     public Transform applyForwardForceAtPosition;
     public Transform frontWheel;
     public Transform rearWheel;
-    public Transform frontWheelBottomPoint;
-    public Transform rearWheelBottomPoint;
-    public float wheelRadius = .5f;
+    public Transform frontWheelTopAnchor;
+    public Transform rearWheelTopAnchor;
+    public float wheelRadius = .2f;
     Rigidbody _rb;
     float _dt;
     float _fdt;
@@ -20,13 +20,13 @@ public class Player : MonoBehaviour
     bool _keyLeftPressed;
     bool _keyRightPressed;
     public LayerMask groundLayerMask;
-    Vector3 _frontLocalOffset;
-    Vector3 _rearLocalOffset;
-    public float stiffness = 80;
-    public float damping = 18;
-    public float rotStiffness = 150;
-    public float rotDamping = 25;
-    public WheelSuspension _frontWheelSuspension;
+    // [Tooltip("Klidová nezatížená délka tlumiče")]
+    // public float restLength = .4f;        // klidová délka odpružení
+    // [Tooltip("Vůle pružiny stalčit se = (kam až dovolím hornímu okraji kola jít nahoru při stlačení) - (horní okraj kola), tj. délka pružiny")]
+    // public float springTravel = .2f;      // maximální komprese
+    public float springStrength = 30000;  // N/m -- síla, ne "acceleration" konstanta
+    public float damperStrength = 3000;   // N*s/m
+    WheelSuspension _frontWheelSuspension;
     WheelSuspension _rearWheelSuspension;
 
     void Start()
@@ -34,10 +34,15 @@ public class Player : MonoBehaviour
         _rb = GetComponent<Rigidbody>();
         _rb.maxLinearVelocity = maxSpeed;
         _rb.centerOfMass = centerOfMass.localPosition;
-        _frontLocalOffset = frontWheel.position - transform.position;
-        _rearLocalOffset = rearWheel.position - transform.position;
-        _frontWheelSuspension = new WheelSuspension(frontWheel, .2f);
-        _rearWheelSuspension = new WheelSuspension(rearWheel, .2f);
+        // _frontLocalOffset = frontWheel.position - transform.position;
+        // _rearLocalOffset = rearWheel.position - transform.position;
+        
+        var restLengthFront = frontWheelTopAnchor.position.y - frontWheel.position.y;
+        var springTravelFront = restLengthFront - wheelRadius;  // Tohle by se správně mělo počítat jako POMĚR z restLengthFront. Ale já si ten anchor můžu nastavit, jak vysoko chci. 
+
+
+        _frontWheelSuspension = new (frontWheelTopAnchor, wheelRadius, restLengthFront, springTravelFront, springStrength, damperStrength);
+        _rearWheelSuspension = new (rearWheelTopAnchor, wheelRadius, restLengthFront, springTravelFront, springStrength, damperStrength);
     }
 
     void Update()
@@ -95,31 +100,30 @@ public class Player : MonoBehaviour
 
     void ApplyWheelSuspension(WheelSuspension wheel)
     {
-        Vector3 origin = wheel.wheelAnchor.position;
-        Vector3 down = -transform.up; // lokální dolů, sleduje náklon motorky
+        var origin = wheel.WheelAnchor.position;
+        var down = - transform.up; // lokální dolů, sleduje náklon motorky
+        var maxDist = wheel.RestLength + wheel.SpringTravel + wheel.WheelRadius;
 
-        float maxDist = wheel.restLength + wheel.springTravel + wheel.wheelRadius;
-
-        if (Physics.Raycast(origin, down, out RaycastHit hit, maxDist))
+        if (Physics.Raycast(origin, down, out var hit, maxDist, groundLayerMask))
         {
             wheel.grounded = true;
             wheel.contactPoint = hit.point;
 
             // Aktuální délka pružiny (vzdálenost od anchoru k bodu, kde by "sedělo" kolo)
-            float currentLength = hit.distance - wheel.wheelRadius;
-            currentLength = Mathf.Clamp(currentLength, 0f, wheel.restLength + wheel.springTravel);
+            var currentLength = hit.distance - wheel.WheelRadius;
+            currentLength = Mathf.Clamp(currentLength, 0f, wheel.RestLength + wheel.SpringTravel);
 
-            float compression = (wheel.restLength - currentLength) / wheel.springTravel; 
+            var compression = (wheel.RestLength - currentLength) / wheel.SpringTravel; 
             // compression > 0 = pružina stlačená = tlačí ven
 
             // Rychlost stlačování/rozpínání (damping)
-            float velocity = (wheel.lastLength - currentLength) / Time.fixedDeltaTime;
+            var velocity = (wheel.lastLength - currentLength) / Time.fixedDeltaTime;
             wheel.lastLength = currentLength;
 
-            float springForce = compression * wheel.springStrength;
-            float damperForce = velocity * wheel.damperStrength;
+            var springForce = compression * wheel.SpringStrength;
+            var damperForce = velocity * wheel.DamperStrength;
 
-            float totalForce = springForce + damperForce;
+            var totalForce = springForce + damperForce;
             totalForce = Mathf.Max(totalForce, 0f); // pružina nikdy netahá dolů, jen tlačí
 
             _rb.AddForceAtPosition(transform.up * totalForce, origin);
@@ -127,29 +131,31 @@ public class Player : MonoBehaviour
         else
         {
             wheel.grounded = false;
-            wheel.lastLength = wheel.restLength + wheel.springTravel;
+            wheel.lastLength = wheel.RestLength + wheel.SpringTravel;
         }
     }
 
-    [System.Serializable]
     public class WheelSuspension
     {
-        public Transform wheelAnchor;      // bod na motorce, odkud vede raycast (osa vidlice)
-        public float restLength = .4f;    // klidová délka odpružení
-        public float springTravel = .2f;  // maximální komprese
-        public float wheelRadius;
+        public readonly Transform WheelAnchor;      // bod na motorce, odkud vede raycast (osa vidlice)
+        public readonly float WheelRadius;
+        public readonly float RestLength;    // klidová délka odpružení
+        public readonly float SpringTravel;  // maximální komprese
+        public readonly float SpringStrength; // N/m -- síla, ne "acceleration" konstanta
+        public readonly float DamperStrength;  // N*s/m
 
-        public float springStrength = 30000; // N/m -- síla, ne "acceleration" konstanta
-        public float damperStrength = 3000;  // N*s/m
-
-        public WheelSuspension(Transform anchor, float radius)
+        public WheelSuspension(Transform anchor, float radius, float restLength, float springTravel, float springStrength, float damperStrength)
         {
-            wheelAnchor = anchor;
-            wheelRadius = radius;
+            WheelAnchor = anchor;
+            WheelRadius = radius;
+            RestLength = restLength;
+            SpringTravel = springTravel;
+            SpringStrength = springStrength;
+            DamperStrength = damperStrength;
         }
 
-        [HideInInspector] public float lastLength; // pro výpočet compression velocity
-        [HideInInspector] public bool grounded;
-        [HideInInspector] public Vector3 contactPoint;
+        public float lastLength; // pro výpočet compression velocity
+        public bool grounded;
+        public Vector3 contactPoint;
     }
 }
