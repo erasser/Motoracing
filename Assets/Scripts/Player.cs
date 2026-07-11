@@ -1,4 +1,6 @@
 using UnityEngine;
+using UnityEngine.UI;
+
 // https://claude.ai/chat/fb6bcee5-bdcc-4a3f-a967-038c3e812785
 
 public class Player : MonoBehaviour
@@ -28,18 +30,17 @@ public class Player : MonoBehaviour
     public float damperStrength = 3000;   // N*s/m
     WheelSuspension _frontWheelSuspension;
     WheelSuspension _rearWheelSuspension;
+    Text _infoText;
 
     void Start()
     {
+        _infoText = GameObject.Find("info text").GetComponent<Text>();
         _rb = GetComponent<Rigidbody>();
         _rb.maxLinearVelocity = maxSpeed;
         _rb.centerOfMass = centerOfMass.localPosition;
-        // _frontLocalOffset = frontWheel.position - transform.position;
-        // _rearLocalOffset = rearWheel.position - transform.position;
         
         var restLengthFront = frontWheelTopAnchor.position.y - frontWheel.position.y;
         var springTravelFront = restLengthFront - wheelRadius;  // Tohle by se správně mělo počítat jako POMĚR z restLengthFront. Ale já si ten anchor můžu nastavit, jak vysoko chci. 
-
 
         _frontWheelSuspension = new (frontWheelTopAnchor, wheelRadius, restLengthFront, springTravelFront, springStrength, damperStrength);
         _rearWheelSuspension = new (rearWheelTopAnchor, wheelRadius, restLengthFront, springTravelFront, springStrength, damperStrength);
@@ -64,7 +65,7 @@ public class Player : MonoBehaviour
         ProcessFixedControls();
 
         ApplyWheelSuspension(_frontWheelSuspension);
-        ApplyWheelSuspension(_rearWheelSuspension);        
+        ApplyWheelSuspension(_rearWheelSuspension/*, true*/);        
     }
     void ProcessControls()
     {
@@ -75,7 +76,7 @@ public class Player : MonoBehaviour
 
     void ProcessFixedControls()
     {
-        if (_keyForwardPressed)
+        if (_keyForwardPressed && _rearWheelSuspension.grounded)
         {
             _rb.AddForceAtPosition(_fdt * forwardAcceleration * transform.forward, applyForwardForceAtPosition.position, ForceMode.Acceleration);
         }
@@ -90,7 +91,7 @@ public class Player : MonoBehaviour
         // Debug.Log(frontWheelCollider.steerAngle);
     }
 
-    void UpdateWheelRotation()
+    void UpdateWheelRotation()  // TODO: To počítá i při letu/pádu
     {
         var deltaAngle = Vector3.Dot(_rb.linearVelocity, transform.forward) / .475f * _dt;
 
@@ -98,7 +99,7 @@ public class Player : MonoBehaviour
         rearWheel.Rotate(deltaAngle * Mathf.Rad2Deg, 0, 0);
     }
 
-    void ApplyWheelSuspension(WheelSuspension wheel)
+    void ApplyWheelSuspension(WheelSuspension wheel/*, bool updateInfoText = false*/)
     {
         var origin = wheel.WheelAnchor.position;
         var down = - transform.up; // lokální dolů, sleduje náklon motorky
@@ -133,9 +134,12 @@ public class Player : MonoBehaviour
             wheel.grounded = false;
             wheel.lastLength = wheel.RestLength + wheel.SpringTravel;
         }
+
+        // if (updateInfoText)
+        //     _infoText.text = $"grounded: {wheel.grounded}";
     }
 
-    public class WheelSuspension
+    class WheelSuspension
     {
         public readonly Transform WheelAnchor;      // bod na motorce, odkud vede raycast (osa vidlice)
         public readonly float WheelRadius;
