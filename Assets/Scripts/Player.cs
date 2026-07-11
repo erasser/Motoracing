@@ -5,8 +5,8 @@ using UnityEngine.UI;
 
 public class Player : MonoBehaviour
 {
-    [Tooltip("m/s")]
-    public float maxSpeed = 50;
+    // [Tooltip("m/s")]
+    // public float maxSpeed = 50;
     public float forwardAcceleration = 800;
     public Transform centerOfMass;
     public Transform applyForwardForceAtPosition;
@@ -31,12 +31,25 @@ public class Player : MonoBehaviour
     WheelSuspension _frontWheelSuspension;
     WheelSuspension _rearWheelSuspension;
     Text _infoText;
+    float _targetSteerAngle;
+    float _steerAngle;
+    [Header("Steering")]
+    public float maxSteerAngle = 30;
+    public float minSteerAngle = 5f;       // úhel při vysoké rychlosti
+    // TODO: Musim být schopný spočítat reálnou maximální rychlost
+    public float referenceSpeed;           // m/s, rychlost, při které dosáhneš minSteerAngle
+    public float steerSmoothSpeed = 5f;    // laditelná citlivost Lerpu
+    public Transform handleBar;
+    Vector3 _initialHandleBarEuler;
 
     void Start()
     {
         _infoText = GameObject.Find("info text").GetComponent<Text>();
+        _initialHandleBarEuler = handleBar.localEulerAngles;
+        // referenceSpeed = maxSpeed;  // TODO: odstranit referenceSpeed, jestli to tak nechám
+
         _rb = GetComponent<Rigidbody>();
-        _rb.maxLinearVelocity = maxSpeed;
+        // _rb.maxLinearVelocity = maxSpeed;
         _rb.centerOfMass = centerOfMass.localPosition;
         
         var restLengthFront = frontWheelTopAnchor.position.y - frontWheel.position.y;
@@ -65,8 +78,11 @@ public class Player : MonoBehaviour
         ProcessFixedControls();
 
         ApplyWheelSuspension(_frontWheelSuspension);
-        ApplyWheelSuspension(_rearWheelSuspension/*, true*/);        
+        ApplyWheelSuspension(_rearWheelSuspension/*, true*/);    
+
+        UpdateSteering();
     }
+
     void ProcessControls()
     {
         _keyForwardPressed = Input.GetKey(KeyCode.W);
@@ -134,9 +150,27 @@ public class Player : MonoBehaviour
             wheel.grounded = false;
             wheel.lastLength = wheel.RestLength + wheel.SpringTravel;
         }
+    }
 
-        // if (updateInfoText)
-        //     _infoText.text = $"grounded: {wheel.grounded}";
+    void UpdateSteering()
+    {
+        // TODO: Až budou smyky nagradit vel.magnitude za float forwardSpeed = Vector3.Dot(_rb.linearVelocity, transform.forward);
+        var speedFactor = Mathf.Clamp01(_rb.linearVelocity.magnitude / referenceSpeed);
+        var currentMaxSteerAngle = Mathf.Lerp(maxSteerAngle, minSteerAngle, speedFactor);
+
+        if (_keyLeftPressed)
+            _targetSteerAngle = -currentMaxSteerAngle;
+        else if (_keyRightPressed)
+            _targetSteerAngle = currentMaxSteerAngle;
+        else
+            _targetSteerAngle = 0f;
+
+        _steerAngle = Mathf.Lerp(_steerAngle, _targetSteerAngle, _fdt * steerSmoothSpeed);
+        _steerAngle = Mathf.Clamp(_steerAngle, -maxSteerAngle, maxSteerAngle);
+
+        handleBar.localEulerAngles = new Vector3(_initialHandleBarEuler.x, _steerAngle, _initialHandleBarEuler.z);
+        
+        _infoText.text = $"steer ang: {_steerAngle}\nvelocity: {_rb.linearVelocity.magnitude}";
     }
 
     class WheelSuspension
