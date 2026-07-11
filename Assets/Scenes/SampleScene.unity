@@ -509,7 +509,7 @@ Transform:
   m_GameObject: {fileID: 370430743}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: -0.058, z: -0.214}
+  m_LocalPosition: {x: 0, y: -0.164, z: -0.25}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -713,7 +713,7 @@ BoxCollider:
   m_Enabled: 1
   serializedVersion: 3
   m_Size: {x: 0.5, y: 0.98, z: 1.95}
-  m_Center: {x: 0, y: 0.44, z: 0.05}
+  m_Center: {x: 0, y: 0.25, z: 0.05}
 --- !u!114 &488290513
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -737,15 +737,17 @@ MonoBehaviour:
   groundLayerMask:
     serializedVersion: 2
     m_Bits: 64
-  springStrength: 30000
+  springStrength: 10000
   damperStrength: 3000
   maxSteerAngle: 30
   minSteerAngle: 5
   referenceSpeed: 8
   steerSmoothSpeed: 5
   handleBar: {fileID: 846623592}
-  frontMaxGripForce: 4000
-  rearMaxGripForce: 3000
+  frontGripStrength: 1000
+  rearGripStrength: 4000
+  frontMaxGripForce: 800
+  rearMaxGripForce: 2000
 --- !u!1 &494247302
 GameObject:
   m_ObjectHideFlags: 0
@@ -1012,7 +1014,7 @@ Transform:
   m_GameObject: {fileID: 755986396}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: -0.139, z: -0.975}
+  m_LocalPosition: {x: 0, y: -0.339, z: -0.954}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -1311,7 +1313,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: f7a866c87aa3d394a85d3fe39c15f328, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0
+      value: 18.38
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: f7a866c87aa3d394a85d3fe39c15f328, type: 3}
       propertyPath: m_LocalPosition.z

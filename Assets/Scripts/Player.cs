@@ -38,6 +38,8 @@ public class Player : MonoBehaviour
     public Transform handleBar;
     Vector3 _initialHandleBarEuler;
     [Header("Grip")]
+    public float frontGripStrength = 1000f;
+    public float rearGripStrength = 4000f;
     public float frontMaxGripForce = 4000;
     public float rearMaxGripForce = 3000;
 
@@ -50,7 +52,7 @@ public class Player : MonoBehaviour
         _rb = GetComponent<Rigidbody>();
         // _rb.maxLinearVelocity = maxSpeed;
         _rb.centerOfMass = centerOfMass.localPosition;
-        
+
         var restLengthFront = frontWheelTopAnchor.position.y - frontWheel.position.y;
         var springTravelFront = restLengthFront - wheelRadius;  // Tohle by se správně mělo počítat jako POMĚR z restLengthFront. Ale já si ten anchor můžu nastavit, jak vysoko chci. 
 
@@ -76,8 +78,8 @@ public class Player : MonoBehaviour
         ApplyWheelSuspension(_frontWheelSuspension);
         ApplyWheelSuspension(_rearWheelSuspension/*, true*/);    
 
-        ApplyLateralGrip(_frontWheelSuspension, handleBar.right, frontMaxGripForce); // natočená osa!
-        // ApplyLateralGrip(_rearWheelSuspension, transform.right, rearMaxGripForce);   // osa těla
+        ApplyLateralGrip(_frontWheelSuspension, handleBar.right, frontGripStrength, frontMaxGripForce);
+        ApplyLateralGrip(_rearWheelSuspension, transform.right, rearGripStrength, rearMaxGripForce);
 
         ApplyLongitudinalForce();  // forward push
     }
@@ -206,20 +208,37 @@ public class Player : MonoBehaviour
         _rb.AddForceAtPosition(dir * force, wheel.contactPoint);
     }
 
-    void ApplyLateralGrip(WheelSuspension wheel, Vector3 rightDir, float maxGripForce)
+    // void ApplyLateralGrip(WheelSuspension wheel, Vector3 rightDir, float maxGripForce)
+    // {
+    //     if (!wheel.grounded) return;
+    //
+    //     var right = Vector3.ProjectOnPlane(rightDir, wheel.groundNormal).normalized;
+    //     var pointVelocity = _rb.GetPointVelocity(wheel.contactPoint);
+    //     var lateralSpeed = Vector3.Dot(pointVelocity, right);
+    //
+    //     var neededForce = -lateralSpeed * _rb.mass / Time.fixedDeltaTime;
+    //     neededForce = Mathf.Clamp(neededForce, -maxGripForce, maxGripForce);
+    //
+    //     _rb.AddForceAtPosition(right * neededForce, wheel.contactPoint);
+    //
+    //     Debug.Log($"lateralSpeed: {lateralSpeed:F4}, neededForce: {neededForce:F1}");
+    //
+    // }
+
+    // P-controller
+    void ApplyLateralGrip(WheelSuspension wheel, Vector3 rightDir, float gripStrength, float maxGripForce)
     {
         if (!wheel.grounded) return;
-
-        var right = Vector3.ProjectOnPlane(rightDir, wheel.groundNormal).normalized;
-        var pointVelocity = _rb.GetPointVelocity(wheel.contactPoint);
-        var lateralSpeed = Vector3.Dot(pointVelocity, right);
-
-        var neededForce = -lateralSpeed * _rb.mass / Time.fixedDeltaTime;
-        neededForce = Mathf.Clamp(neededForce, -maxGripForce, maxGripForce);
-
-        _rb.AddForceAtPosition(right * neededForce, wheel.contactPoint);
-
-        Debug.Log($"lateralSpeed: {lateralSpeed:F4}, neededForce: {neededForce:F1}");
-
+    
+        Vector3 right = Vector3.ProjectOnPlane(rightDir, wheel.groundNormal).normalized;
+        Vector3 pointVelocity = _rb.GetPointVelocity(wheel.contactPoint);
+        float lateralSpeed = Vector3.Dot(pointVelocity, right);
+    
+        float force = -lateralSpeed * gripStrength; // NE / Time.fixedDeltaTime
+        force = Mathf.Clamp(force, -maxGripForce, maxGripForce);
+    
+        _rb.AddForceAtPosition(right * force, wheel.contactPoint);
+        
+        // Debug.Log($"lateralSpeed: {lateralSpeed:F4}, neededForce: {neededForce:F1}");
     }
 }
