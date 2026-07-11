@@ -253,6 +253,10 @@ PrefabInstance:
       propertyPath: m_Layer
       value: 6
       objectReference: {fileID: 0}
+    - target: {fileID: 919132149155446097, guid: 63ef56c07d74a4849aa3b6ef3e218e30, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -740,6 +744,8 @@ MonoBehaviour:
   referenceSpeed: 8
   steerSmoothSpeed: 5
   handleBar: {fileID: 846623592}
+  frontMaxGripForce: 4000
+  rearMaxGripForce: 3000
 --- !u!1 &494247302
 GameObject:
   m_ObjectHideFlags: 0
@@ -1224,7 +1230,7 @@ Camera:
     height: 1
   near clip plane: 0.3
   far clip plane: 1000
-  field of view: 60
+  field of view: 50
   orthographic: 0
   orthographic size: 5
   m_Depth: -1
@@ -1250,13 +1256,13 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 963194225}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.20581387, y: 0.2760927, z: -0.060652394, w: 0.936875}
-  m_LocalPosition: {x: -1.27, y: 1.5809999, z: -0.37}
+  m_LocalRotation: {x: 0.28376424, y: 0, z: 0, w: 0.95889413}
+  m_LocalPosition: {x: 0, y: 2.1, z: -2.99}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 488290511}
-  m_LocalEulerAnglesHint: {x: 24.78, y: 32.84, z: 0}
+  m_LocalEulerAnglesHint: {x: 32.97, y: 0, z: 0}
 --- !u!1 &979299582 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: f7a866c87aa3d394a85d3fe39c15f328, type: 3}
@@ -1293,11 +1299,11 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: -8679921383154817045, guid: f7a866c87aa3d394a85d3fe39c15f328, type: 3}
       propertyPath: m_LocalScale.x
-      value: 500
+      value: 1000
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: f7a866c87aa3d394a85d3fe39c15f328, type: 3}
       propertyPath: m_LocalScale.z
-      value: 500
+      value: 1000
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: f7a866c87aa3d394a85d3fe39c15f328, type: 3}
       propertyPath: m_LocalPosition.x
@@ -1357,7 +1363,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 919132149155446097, guid: f7a866c87aa3d394a85d3fe39c15f328, type: 3}
       propertyPath: m_IsActive
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 919132149155446097, guid: f7a866c87aa3d394a85d3fe39c15f328, type: 3}
       propertyPath: m_StaticEditorFlags

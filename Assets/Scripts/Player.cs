@@ -22,10 +22,6 @@ public class Player : MonoBehaviour
     bool _keyLeftPressed;
     bool _keyRightPressed;
     public LayerMask groundLayerMask;
-    // [Tooltip("Klidová nezatížená délka tlumiče")]
-    // public float restLength = .4f;        // klidová délka odpružení
-    // [Tooltip("Vůle pružiny stalčit se = (kam až dovolím hornímu okraji kola jít nahoru při stlačení) - (horní okraj kola), tj. délka pružiny")]
-    // public float springTravel = .2f;      // maximální komprese
     public float springStrength = 30000;  // N/m -- síla, ne "acceleration" konstanta
     public float damperStrength = 3000;   // N*s/m
     WheelSuspension _frontWheelSuspension;
@@ -41,6 +37,9 @@ public class Player : MonoBehaviour
     public float steerSmoothSpeed = 5f;    // laditelná citlivost Lerpu
     public Transform handleBar;
     Vector3 _initialHandleBarEuler;
+    [Header("Grip")]
+    public float frontMaxGripForce = 4000;
+    public float rearMaxGripForce = 3000;
 
     void Start()
     {
@@ -72,15 +71,15 @@ public class Player : MonoBehaviour
     {
         _fdt = Time.fixedDeltaTime;
 
-        // if (_rb.linearVelocity.sqrMagnitude < .04f)
-        //     _rb.linearVelocity = transform.forward * .2f;
-
-        ProcessFixedControls();
+        UpdateSteering();
 
         ApplyWheelSuspension(_frontWheelSuspension);
         ApplyWheelSuspension(_rearWheelSuspension/*, true*/);    
 
-        UpdateSteering();
+        ApplyLateralGrip(_frontWheelSuspension, handleBar.right, frontMaxGripForce); // natočená osa!
+        // ApplyLateralGrip(_rearWheelSuspension, transform.right, rearMaxGripForce);   // osa těla
+
+        ApplyLongitudinalForce();  // forward push
     }
 
     void ProcessControls()
@@ -90,7 +89,7 @@ public class Player : MonoBehaviour
         _keyRightPressed = Input.GetKey(KeyCode.D);
     }
 
-    void ProcessFixedControls()
+    void ApplyLongitudinalForce()
     {
         if (_keyForwardPressed && _rearWheelSuspension.grounded)
         {
@@ -125,6 +124,7 @@ public class Player : MonoBehaviour
         {
             wheel.grounded = true;
             wheel.contactPoint = hit.point;
+            wheel.groundNormal = hit.normal;
 
             // Aktuální délka pružiny (vzdálenost od anchoru k bodu, kde by "sedělo" kolo)
             var currentLength = hit.distance - wheel.WheelRadius;
@@ -181,6 +181,7 @@ public class Player : MonoBehaviour
         public readonly float SpringTravel;  // maximální komprese
         public readonly float SpringStrength; // N/m -- síla, ne "acceleration" konstanta
         public readonly float DamperStrength;  // N*s/m
+        public Vector3 groundNormal;
 
         public WheelSuspension(Transform anchor, float radius, float restLength, float springTravel, float springStrength, float damperStrength)
         {
@@ -195,5 +196,30 @@ public class Player : MonoBehaviour
         public float lastLength; // pro výpočet compression velocity
         public bool grounded;
         public Vector3 contactPoint;
+    }
+    
+    void ApplyLongitudinalForce(WheelSuspension wheel, Vector3 forwardDir, float force)
+    {
+        if (!wheel.grounded || Mathf.Approximately(force, 0f)) return;
+
+        var dir = Vector3.ProjectOnPlane(forwardDir, wheel.groundNormal).normalized;
+        _rb.AddForceAtPosition(dir * force, wheel.contactPoint);
+    }
+
+    void ApplyLateralGrip(WheelSuspension wheel, Vector3 rightDir, float maxGripForce)
+    {
+        if (!wheel.grounded) return;
+
+        var right = Vector3.ProjectOnPlane(rightDir, wheel.groundNormal).normalized;
+        var pointVelocity = _rb.GetPointVelocity(wheel.contactPoint);
+        var lateralSpeed = Vector3.Dot(pointVelocity, right);
+
+        var neededForce = -lateralSpeed * _rb.mass / Time.fixedDeltaTime;
+        neededForce = Mathf.Clamp(neededForce, -maxGripForce, maxGripForce);
+
+        _rb.AddForceAtPosition(right * neededForce, wheel.contactPoint);
+
+        Debug.Log($"lateralSpeed: {lateralSpeed:F4}, neededForce: {neededForce:F1}");
+
     }
 }
