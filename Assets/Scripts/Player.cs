@@ -26,6 +26,8 @@ public class Player : MonoBehaviour
     public float damping = 18;
     public float rotStiffness = 150;
     public float rotDamping = 25;
+    public WheelSuspension _frontWheelSuspension;
+    WheelSuspension _rearWheelSuspension;
 
     void Start()
     {
@@ -34,6 +36,8 @@ public class Player : MonoBehaviour
         _rb.centerOfMass = centerOfMass.localPosition;
         _frontLocalOffset = frontWheel.position - transform.position;
         _rearLocalOffset = rearWheel.position - transform.position;
+        _frontWheelSuspension = new WheelSuspension(frontWheel, .2f);
+        _rearWheelSuspension = new WheelSuspension(rearWheel, .2f);
     }
 
     void Update()
@@ -49,13 +53,13 @@ public class Player : MonoBehaviour
     {
         _fdt = Time.fixedDeltaTime;
 
-        if (_rb.linearVelocity.sqrMagnitude < .04f)
-            _rb.linearVelocity = transform.forward * .2f;
+        // if (_rb.linearVelocity.sqrMagnitude < .04f)
+        //     _rb.linearVelocity = transform.forward * .2f;
 
         ProcessFixedControls();
 
-        ApplyWheelSuspension(frontWheel);  // TODO: Zde jsem skončil. Poslední nedodělaný pokus. Asi se po mně chce tam podstrčit instance WheelSuspension.
-        ApplyWheelSuspension(rearWheel);        
+        ApplyWheelSuspension(_frontWheelSuspension);
+        ApplyWheelSuspension(_rearWheelSuspension);        
     }
     void ProcessControls()
     {
@@ -89,71 +93,6 @@ public class Player : MonoBehaviour
         rearWheel.Rotate(deltaAngle * Mathf.Rad2Deg, 0, 0);
     }
 
-    void UpdateTransform()
-    {
-        // TODO: SphereCast
-        Physics.Raycast(frontWheel.position, - transform.up, out var frontHit, groundLayerMask);
-        Physics.Raycast(rearWheel.position, - transform.up, out var rearHit, groundLayerMask);
-
-        // "Je to aproximace – přesné by to bylo jen na rovině kolmé k normále, ale pro běžné svahy je to dostatečně přesné." - Co to mele DO PÍČI?
-        var frontWheelCenter = frontHit.point + frontHit.normal * wheelRadius;
-        var rearWheelCenter = rearHit.point + rearHit.normal * wheelRadius;
-
-        var forward = (frontWheelCenter - rearWheelCenter).normalized;
-        var upReference = (frontHit.normal + rearHit.normal).normalized;
-        var right = Vector3.Cross(upReference, forward).normalized;
-        var up = Vector3.Cross(forward, right).normalized;
-
-        var targetRotation = Quaternion.LookRotation(forward, up);
-        var originFromFront = frontWheelCenter - targetRotation * _frontLocalOffset;
-        var originFromRear  = rearWheelCenter  - targetRotation * _rearLocalOffset;
-
-        var targetPosition = Vector3.Lerp(originFromFront, originFromRear, .5f);
-
-        Vector3 posError = targetPosition - _rb.position;
-        var force = posError * stiffness - _rb.linearVelocity * damping;
-        _rb.AddForce(force, ForceMode.Acceleration);
-        Debug.Log($"force: {force}");
-  
-        Quaternion rotError = targetRotation * Quaternion.Inverse(_rb.rotation);
-        rotError.ToAngleAxis(out float angle, out Vector3 axis);
-        if (angle > 180f) angle -= 360f;
-        _rb.AddTorque(axis * (angle * Mathf.Deg2Rad) * rotStiffness - _rb.angularVelocity * rotDamping, ForceMode.Acceleration);
-    }
-
-    void UpdateTransform2()  // kinematické řešení - to možná vyžaduje vypnutou gravitaci a IsKinematic?
-    {
-        Physics.Raycast(frontWheel.position, - transform.up, out var frontHit, groundLayerMask);
-        Physics.Raycast(rearWheel.position, - transform.up, out var rearHit, groundLayerMask);
-
-        // 1) Zachováme aktuální yaw (Y) a roll (Z, lean) – měníme jen pitch (X)
-        Vector3 currentEuler = transform.eulerAngles;
-
-        Quaternion yawOnly = Quaternion.Euler(0f, currentEuler.y, 0f);
-        Vector3 flatForward = yawOnly * Vector3.forward; // dopředný směr bez pitch/roll
-
-        // 2) Pitch z rozdílu výšek kontaktních bodů
-        Vector3 diff = frontHit.point - rearHit.point;
-
-        float forwardDist = Vector3.Dot(diff, flatForward); // vzdálenost "dopředu"
-        float heightDist  = diff.y;                          // výškový rozdíl
-
-        float pitchAngle = -Mathf.Atan2(heightDist, forwardDist) * Mathf.Rad2Deg;
-        // Znaménko (-) obrať, pokud se motorka naklání opačným směrem než chceš
-
-        Quaternion targetRotation = Quaternion.Euler(pitchAngle, currentEuler.y, currentEuler.z);
-
-        // 3) Pozice dopočtená ze dvou kontaktních bodů + lokálních offsetů
-        Vector3 originFromFront = frontHit.point - targetRotation * _frontLocalOffset;
-        Vector3 originFromRear  = rearHit.point  - targetRotation * _rearLocalOffset;
-
-        Vector3 targetPosition = (originFromFront + originFromRear) * 0.5f;
-
-        // 4) Přímé nastavení - žádné síly
-        _rb.MovePosition(targetPosition);
-        _rb.MoveRotation(targetRotation);
-    }
-    
     void ApplyWheelSuspension(WheelSuspension wheel)
     {
         Vector3 origin = wheel.wheelAnchor.position;
@@ -196,12 +135,18 @@ public class Player : MonoBehaviour
     public class WheelSuspension
     {
         public Transform wheelAnchor;      // bod na motorce, odkud vede raycast (osa vidlice)
-        public float restLength = 0.4f;    // klidová délka odpružení
-        public float springTravel = 0.2f;  // maximální komprese
-        public float wheelRadius = 0.3f;
+        public float restLength = .4f;    // klidová délka odpružení
+        public float springTravel = .2f;  // maximální komprese
+        public float wheelRadius;
 
-        public float springStrength = 30000f; // N/m -- síla, ne "acceleration" konstanta
-        public float damperStrength = 3000f;  // N*s/m
+        public float springStrength = 30000; // N/m -- síla, ne "acceleration" konstanta
+        public float damperStrength = 3000;  // N*s/m
+
+        public WheelSuspension(Transform anchor, float radius)
+        {
+            wheelAnchor = anchor;
+            wheelRadius = radius;
+        }
 
         [HideInInspector] public float lastLength; // pro výpočet compression velocity
         [HideInInspector] public bool grounded;
