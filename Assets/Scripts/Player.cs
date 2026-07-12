@@ -45,8 +45,14 @@ public class Player : MonoBehaviour
     [Header("Roll Stabilization")]
     public float rollStiffness = 800;
     public float rollDamping = 150;
-    [Header("Roll Stabilization")]
-    public float leanResponsiveness = 1; // 0 = žádný náklon do zatáčky, 1 = plný fyzikální náklon
+    // [Header("Roll Stabilization")]
+    // public float leanResponsiveness = 1; // 0 = žádný náklon do zatáčky, 1 = plný fyzikální náklon
+    // public float maxLeanAngle = 30f;
+    [Header("Body Roll")]
+    [Range(0f, 1f)] public float frontGripLeverArm = 1f;
+    [Range(0f, 1f)] public float rearGripLeverArm = 1f;
+
+    string debug;
 
     void Start()
     {
@@ -70,6 +76,9 @@ public class Player : MonoBehaviour
         _dt = Time.deltaTime;
 
         ProcessControls();
+
+        if (Input.GetKeyDown(KeyCode.T))
+            Debug.Log(debug);
     }
 
     void FixedUpdate()
@@ -177,8 +186,6 @@ public class Player : MonoBehaviour
         _steerAngle = Mathf.Clamp(_steerAngle, -maxSteerAngle, maxSteerAngle);
 
         handleBar.localEulerAngles = new Vector3(_initialHandleBarEuler.x, _steerAngle, _initialHandleBarEuler.z);
-        
-        // _infoText.text = $"steer ang: {_steerAngle}\nvelocity: {_rb.linearVelocity.magnitude}";
     }
 
     class WheelSuspension
@@ -226,23 +233,37 @@ public class Player : MonoBehaviour
 
     void ApplyRollStabilization()
     {
-        var forward = transform.forward;
-        var projectedWorldUp = Vector3.ProjectOnPlane(Vector3.up, forward).normalized;
-        var projectedLocalUp = Vector3.ProjectOnPlane(transform.up, forward).normalized;
+        Vector3 forward = transform.forward;
+        Vector3 projectedWorldUp = Vector3.ProjectOnPlane(Vector3.up, forward).normalized;
+        Vector3 projectedLocalUp = Vector3.ProjectOnPlane(transform.up, forward).normalized;
 
-        var rollAngle = Vector3.SignedAngle(projectedWorldUp, projectedLocalUp, forward); // stupně
-        var rollRate = Vector3.Dot(_rb.angularVelocity, forward); // rad/s
+        float rollAngle = Vector3.SignedAngle(projectedWorldUp, projectedLocalUp, forward); // stupně
+        float rollRate = Vector3.Dot(_rb.angularVelocity, forward); // rad/s kolem forward osy
 
-        // Yaw rate kolem SVISLÉ osy (world up), ne kolem forward
-        var yawRate = Vector3.Dot(_rb.angularVelocity, Vector3.up); // rad/s
-        var speed = Vector3.Dot(_rb.linearVelocity, forward); // dopředná rychlost
-
-        var targetRollAngle = - Mathf.Atan2(speed * yawRate, 9.81f) * Mathf.Rad2Deg;
-        targetRollAngle *= leanResponsiveness;
-
-        var error = rollAngle - targetRollAngle;
-        var torque = - error * Mathf.Deg2Rad * rollStiffness - rollRate * rollDamping;
+        float torque = - rollAngle * Mathf.Deg2Rad * rollStiffness - rollRate * rollDamping;
 
         _rb.AddTorque(forward * torque);
     }
+
+    // void ApplyRollStabilizationLean()
+    // {
+    //     Vector3 forward = transform.forward;
+    //     Vector3 projectedWorldUp = Vector3.ProjectOnPlane(Vector3.up, forward).normalized;
+    //     Vector3 projectedLocalUp = Vector3.ProjectOnPlane(transform.up, forward).normalized;
+    //
+    //     float rollAngle = Vector3.SignedAngle(projectedWorldUp, projectedLocalUp, forward); // stupně
+    //     float rollRate = Vector3.Dot(_rb.angularVelocity, forward); // rad/s
+    //
+    //     // Yaw rate kolem SVISLÉ osy (world up), ne kolem forward
+    //     float yawRate = Vector3.Dot(_rb.angularVelocity, Vector3.up); // rad/s
+    //     float speed = Vector3.Dot(_rb.linearVelocity, forward); // dopředná rychlost
+    //
+    //     float targetRollAngle = Mathf.Atan2(speed * yawRate, 9.81f) * Mathf.Rad2Deg;
+    //     targetRollAngle *= leanResponsiveness;
+    //
+    //     float error = rollAngle - targetRollAngle;
+    //     float torque = -error * Mathf.Deg2Rad * rollStiffness - rollRate * rollDamping;
+    //
+    //     _rb.AddTorque(forward * torque);
+    // }
 }
