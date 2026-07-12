@@ -21,6 +21,8 @@ public class Player : MonoBehaviour
     bool _keyForwardPressed;
     bool _keyLeftPressed;
     bool _keyRightPressed;
+    bool _keyArrowLeftPressed;
+    bool _keyArrowRightPressed;
     public LayerMask groundLayerMask;
     public float springStrength = 30000;  // N/m -- síla, ne "acceleration" konstanta
     public float damperStrength = 3000;   // N*s/m
@@ -46,7 +48,7 @@ public class Player : MonoBehaviour
     public float rollStiffness = 800;
     public float rollDamping = 150;
     // [Header("Roll Stabilization")]
-    // public float leanResponsiveness = 1; // 0 = žádný náklon do zatáčky, 1 = plný fyzikální náklon
+    public float leanResponsiveness = 1; // 0 = žádný náklon do zatáčky, 1 = plný fyzikální náklon
     // public float maxLeanAngle = 30f;
     [Header("Body Roll")]
     [Range(0f, 1f)] public float frontGripLeverArm = 1f;
@@ -92,12 +94,17 @@ public class Player : MonoBehaviour
         ApplyWheelSuspension(_frontWheelSuspension);
         ApplyWheelSuspension(_rearWheelSuspension);    
 
-        ApplyLateralGrip(_frontWheelSuspension, handleBar.right, frontGripStrength, frontMaxGripForce);
-        ApplyLateralGrip(_rearWheelSuspension, transform.right, rearGripStrength, rearMaxGripForce);
+        ApplyLateralGrip(_frontWheelSuspension, handleBar.right, frontGripStrength, frontMaxGripForce, frontGripLeverArm);
+        ApplyLateralGrip(_rearWheelSuspension, transform.right, rearGripStrength, rearMaxGripForce, rearGripLeverArm);
 
         ApplyLongitudinalForce(/*_rearWheelSuspension, transform.forward, forwardAcceleration*/);  // forward push
 
-        ApplyRollStabilization();
+        ApplyRollStabilizationLean();
+
+        if (_keyArrowLeftPressed)
+            _rb.centerOfMass -= _fdt * .1f * transform.right;
+        if (_keyArrowRightPressed)
+            _rb.centerOfMass += _fdt * .1f * transform.right;
 
         // _infoText.text = $"front normal: {_frontWheelSuspension.groundNormal}\nrear normal: {_rearWheelSuspension.groundNormal}";
     }
@@ -107,6 +114,8 @@ public class Player : MonoBehaviour
         _keyForwardPressed = Input.GetKey(KeyCode.W);
         _keyLeftPressed = Input.GetKey(KeyCode.A);
         _keyRightPressed = Input.GetKey(KeyCode.D);
+        _keyArrowLeftPressed = Input.GetKey(KeyCode.LeftArrow);
+        _keyArrowRightPressed = Input.GetKey(KeyCode.RightArrow);
     }
 
     void ApplyLongitudinalForce()
@@ -214,21 +223,21 @@ public class Player : MonoBehaviour
     }
 
     // P-controller
-    void ApplyLateralGrip(WheelSuspension wheel, Vector3 rightDir, float gripStrength, float maxGripForce)
+    void ApplyLateralGrip(WheelSuspension wheel, Vector3 rightDir, float gripStrength, float maxGripForce, float leverArm)
     {
         if (!wheel.grounded) return;
-    
-        var right = Vector3.ProjectOnPlane(rightDir, wheel.groundNormal).normalized;
-        var pointVelocity = _rb.GetPointVelocity(wheel.contactPoint);
-        var lateralSpeed = Vector3.Dot(pointVelocity, right);
 
-        var force = -lateralSpeed * gripStrength; // NE / Time.fixedDeltaTime
+        Vector3 right = Vector3.ProjectOnPlane(rightDir, wheel.groundNormal).normalized;
+        Vector3 pointVelocity = _rb.GetPointVelocity(wheel.contactPoint);
+        float lateralSpeed = Vector3.Dot(pointVelocity, right);
+
+        float force = -lateralSpeed * gripStrength;
         force = Mathf.Clamp(force, -maxGripForce, maxGripForce);
 
-        _rb.AddForceAtPosition(right * force, wheel.contactPoint);
+        // NOVÉ: bod aplikace síly mezi COM a kontaktním bodem
+        Vector3 applicationPoint = Vector3.Lerp(_rb.worldCenterOfMass, wheel.contactPoint, leverArm);
 
-        // if(info)
-            // _infoText.text = $"handle R: {handleBar.right}";
+        _rb.AddForceAtPosition(right * force, applicationPoint);
     }
 
     void ApplyRollStabilization()
@@ -245,25 +254,28 @@ public class Player : MonoBehaviour
         _rb.AddTorque(forward * torque);
     }
 
-    // void ApplyRollStabilizationLean()
-    // {
-    //     Vector3 forward = transform.forward;
-    //     Vector3 projectedWorldUp = Vector3.ProjectOnPlane(Vector3.up, forward).normalized;
-    //     Vector3 projectedLocalUp = Vector3.ProjectOnPlane(transform.up, forward).normalized;
-    //
-    //     float rollAngle = Vector3.SignedAngle(projectedWorldUp, projectedLocalUp, forward); // stupně
-    //     float rollRate = Vector3.Dot(_rb.angularVelocity, forward); // rad/s
-    //
-    //     // Yaw rate kolem SVISLÉ osy (world up), ne kolem forward
-    //     float yawRate = Vector3.Dot(_rb.angularVelocity, Vector3.up); // rad/s
-    //     float speed = Vector3.Dot(_rb.linearVelocity, forward); // dopředná rychlost
-    //
-    //     float targetRollAngle = Mathf.Atan2(speed * yawRate, 9.81f) * Mathf.Rad2Deg;
-    //     targetRollAngle *= leanResponsiveness;
-    //
-    //     float error = rollAngle - targetRollAngle;
-    //     float torque = -error * Mathf.Deg2Rad * rollStiffness - rollRate * rollDamping;
-    //
-    //     _rb.AddTorque(forward * torque);
-    // }
+    void ApplyRollStabilizationLean()
+    {
+        Vector3 forward = transform.forward;
+        Vector3 projectedWorldUp = Vector3.ProjectOnPlane(Vector3.up, forward).normalized;
+        Vector3 projectedLocalUp = Vector3.ProjectOnPlane(transform.up, forward).normalized;
+    
+        float rollAngle = Vector3.SignedAngle(projectedWorldUp, projectedLocalUp, forward); // stupně
+        float rollRate = Vector3.Dot(_rb.angularVelocity, forward); // rad/s
+    
+        // Yaw rate kolem SVISLÉ osy (world up), ne kolem forward
+        float yawRate = Vector3.Dot(_rb.angularVelocity, Vector3.up); // rad/s
+        float speed = Vector3.Dot(_rb.linearVelocity, forward); // dopředná rychlost
+    
+        float targetRollAngle = - Mathf.Atan2(speed * yawRate, 9.81f) * Mathf.Rad2Deg;
+        targetRollAngle *= leanResponsiveness;
+
+        if (rollAngle != 0)
+            debug += $"ra={rollAngle:F2};tra={targetRollAngle};";
+
+        float error = rollAngle - targetRollAngle;
+        float torque = -error * Mathf.Deg2Rad * rollStiffness - rollRate * rollDamping;
+    
+        _rb.AddTorque(forward * torque);
+    }
 }
