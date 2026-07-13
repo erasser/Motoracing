@@ -56,8 +56,13 @@ public class Player : MonoBehaviour
     [Header("Body Roll")]
     [Range(0f, 1f)] public float frontGripLeverArm = 1f;
     [Range(0f, 1f)] public float rearGripLeverArm = 1f;
+    bool _lightsEnabled;
+    public Light frontLight;
+    public Light backLight;
+    public Material frontLightMaterial;
+    public Material backLightMaterial;
 
-    string debug;
+    // string debug;
 
     void Start()
     {
@@ -66,6 +71,7 @@ public class Player : MonoBehaviour
         // referenceSpeed = maxSpeed;  // TODO: odstranit referenceSpeed, jestli to tak nechám
         _mainCameraTransform = mainCamera.transform;
         _cameraInitialRotX = _mainCameraTransform.localEulerAngles.x;
+        _lightsEnabled = frontLight.gameObject.activeSelf;
 
         _rb = GetComponent<Rigidbody>();
         // _rb.maxLinearVelocity = maxSpeed;
@@ -84,10 +90,12 @@ public class Player : MonoBehaviour
 
         ProcessControls();
 
-        if (Input.GetKeyDown(KeyCode.T))
-            Debug.Log(debug);
+        // if (Input.GetKeyDown(KeyCode.T))
+        //     Debug.Log(debug);
 
         UpdateCamera();
+
+        _infoText.text = _rb.linearVelocity.magnitude.ToString("F1");
     }
 
     void UpdateCamera()
@@ -132,6 +140,28 @@ public class Player : MonoBehaviour
         _keyRightPressed = Input.GetKey(KeyCode.D);
         _keyArrowLeftPressed = Input.GetKey(KeyCode.LeftArrow);
         _keyArrowRightPressed = Input.GetKey(KeyCode.RightArrow);
+
+        if (Input.GetKeyDown(KeyCode.L))
+            ToggleLights();
+    }
+
+    void ToggleLights()
+    {
+        _lightsEnabled = !_lightsEnabled;
+
+        frontLight.gameObject.SetActive(_lightsEnabled);
+        backLight.gameObject.SetActive(_lightsEnabled);
+
+        if (_lightsEnabled)
+        {
+            frontLightMaterial.EnableKeyword("_EMISSION");    
+            backLightMaterial.EnableKeyword("_EMISSION");    
+        }
+        else
+        {
+            frontLightMaterial.DisableKeyword("_EMISSION");    
+            backLightMaterial.DisableKeyword("_EMISSION");    
+        }
     }
 
     void ApplyLongitudinalForce()
@@ -144,7 +174,7 @@ public class Player : MonoBehaviour
             else
                 force = _fdt * forwardAcceleration / 3;
 
-            _rb.AddForceAtPosition(force * transform.forward, applyForwardForceAtPosition.position, ForceMode.Acceleration);
+            _rb.AddForceAtPosition(force * transform.forward, applyForwardForceAtPosition.position);
         }
     }
 
@@ -294,8 +324,8 @@ public class Player : MonoBehaviour
         float targetRollAngle = - Mathf.Atan2(speed * yawRate, 9.81f) * Mathf.Rad2Deg;
         targetRollAngle *= leanResponsiveness;
 
-        if (rollAngle != 0)
-            debug += $"ra={rollAngle:F2};tra={targetRollAngle};";
+        // if (rollAngle != 0)
+        //     debug += $"ra={rollAngle:F2};tra={targetRollAngle};";
 
         float error = rollAngle - targetRollAngle;
         float torque = -error * Mathf.Deg2Rad * rollStiffness - rollRate * rollDamping;
