@@ -7,6 +7,9 @@ public class Player : MonoBehaviour
 {
     // [Tooltip("m/s")]
     // public float maxSpeed = 50;
+    public Camera mainCamera;
+    Transform _mainCameraTransform;
+    float _cameraInitialRotX;
     public float forwardAcceleration = 800;
     public Transform centerOfMass;
     public Transform applyForwardForceAtPosition;
@@ -61,6 +64,8 @@ public class Player : MonoBehaviour
         _infoText = GameObject.Find("info text").GetComponent<Text>();
         _initialHandleBarEuler = handleBar.localEulerAngles;
         // referenceSpeed = maxSpeed;  // TODO: odstranit referenceSpeed, jestli to tak nechám
+        _mainCameraTransform = mainCamera.transform;
+        _cameraInitialRotX = _mainCameraTransform.localEulerAngles.x;
 
         _rb = GetComponent<Rigidbody>();
         // _rb.maxLinearVelocity = maxSpeed;
@@ -81,6 +86,17 @@ public class Player : MonoBehaviour
 
         if (Input.GetKeyDown(KeyCode.T))
             Debug.Log(debug);
+
+        UpdateCamera();
+    }
+
+    void UpdateCamera()
+    {
+        _mainCameraTransform.eulerAngles = new (_mainCameraTransform.eulerAngles.x, transform.eulerAngles.y, 0);
+        // _mainCameraTransform.eulerAngles = new (_cameraInitialRotX, transform.eulerAngles.y, 0);
+        var cameraLocalPosition = _mainCameraTransform.localPosition; 
+        var targetCameraX = _rb.angularVelocity.y * 2;
+        _mainCameraTransform.localPosition = new(Mathf.Lerp(cameraLocalPosition.x, targetCameraX, 2 * _dt), cameraLocalPosition.y, cameraLocalPosition.z);
     }
 
     void FixedUpdate()
@@ -120,8 +136,16 @@ public class Player : MonoBehaviour
 
     void ApplyLongitudinalForce()
     {
-        if (_keyForwardPressed && _rearWheelSuspension.grounded)
-            _rb.AddForceAtPosition(_fdt * forwardAcceleration * transform.forward, applyForwardForceAtPosition.position, ForceMode.Acceleration);
+        if (_rearWheelSuspension.grounded)
+        {
+            float force;
+            if (_keyForwardPressed)
+                force = _fdt * forwardAcceleration;
+            else
+                force = _fdt * forwardAcceleration / 3;
+
+            _rb.AddForceAtPosition(force * transform.forward, applyForwardForceAtPosition.position, ForceMode.Acceleration);
+        }
     }
 
     void ApplyLongitudinalForce(WheelSuspension wheel, Vector3 forwardDir, float force)
