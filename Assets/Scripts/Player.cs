@@ -10,6 +10,7 @@ public class Player : MonoBehaviour
     public Camera mainCamera;
     Transform _mainCameraTransform;
     float _cameraInitialRotX;
+    float _cameraInitialHeight;
     public float forwardAcceleration = 800;
     public Transform centerOfMass;
     public Transform applyForwardForceAtPosition;
@@ -71,6 +72,7 @@ public class Player : MonoBehaviour
         // referenceSpeed = maxSpeed;  // TODO: odstranit referenceSpeed, jestli to tak nechám
         _mainCameraTransform = mainCamera.transform;
         _cameraInitialRotX = _mainCameraTransform.localEulerAngles.x;
+        _cameraInitialHeight = _mainCameraTransform.position.y;
         _lightsEnabled = frontLight.gameObject.activeSelf;
 
         _rb = GetComponent<Rigidbody>();
@@ -100,11 +102,13 @@ public class Player : MonoBehaviour
 
     void UpdateCamera()
     {
-        _mainCameraTransform.eulerAngles = new (_mainCameraTransform.eulerAngles.x, transform.eulerAngles.y, 0);
+        // _mainCameraTransform.eulerAngles = new (_mainCameraTransform.eulerAngles.x, transform.eulerAngles.y, 0);
         // _mainCameraTransform.eulerAngles = new (_cameraInitialRotX, transform.eulerAngles.y, 0);
         var cameraLocalPosition = _mainCameraTransform.localPosition; 
         var targetCameraX = _rb.angularVelocity.y * 2;
         _mainCameraTransform.localPosition = new(Mathf.Lerp(cameraLocalPosition.x, targetCameraX, 2 * _dt), cameraLocalPosition.y, cameraLocalPosition.z);
+        var pos = _mainCameraTransform.position;
+        _mainCameraTransform.position = new (pos.x, _cameraInitialHeight, pos.z);
     }
 
     void FixedUpdate()
